@@ -1,9 +1,11 @@
 import asyncio
 import logging
 import os
+import re
 from email.parser import BytesParser
 from email.header import decode_header
 from aiosmtpd.controller import Controller
+from urllib.parse import urlparse
 
 # 로그 설정: DEBUG 레벨로 모든 세부 정보를 기록
 logging.basicConfig(filename="/var/log/filtering_server.log", level=logging.DEBUG,
@@ -24,6 +26,9 @@ MIME_MAPPING = {
     '.jpeg': 'image/jpeg',
     '.png': 'image/png'
 }
+
+ALLOWED_DOMAIN = "www.gothroughsecurity.store"
+ALLOWED_PATH_PREFIX = "/wordpress/"
 
 def decode_mime_words(s):
     """MIME 인코딩된 문자열을 디코딩하는 함수"""
@@ -84,6 +89,16 @@ class FilterHandler:
             print(block_msg)
             logger.info(block_msg)
             return "554 Message rejected due to MIME mapping validation failure"
+
+        # 4. URL 필터링
+        combined_text = subject + " " + body
+        urls_valid, invalid_url = self.validate_urls_in_text(combined_text)
+        if not urls_valid:
+            block_msg = "Blocked: Contains untrusted URL"
+            print(block_msg)
+            logger.info(block_msg)
+            return "554 Message rejected due to untrusted URL"
+
 
         # 필터링 통과 시 Postfix로 릴레이 (추후 안티바이러스 기능 등 추가 가능)
         accept_msg = "Accepted: Email passed the filtering check"
@@ -167,6 +182,33 @@ class FilterHandler:
                     logger.warning(f"No MIME mapping found for {filename} with extension {ext}")
         logger.debug("MIME 매핑 검증 완료")
         return valid
+
+    def extract_urls(self, text):
+        """
+        정규표현식을 사용하여 텍스트 내의 URL을 추출
+        """
+        url_pattern = r'(https?://[^\s<>"]+|(?:www\.)?[gG]othroughsecurity\.store[^\s<>"]*)'
+        return re.findall(url_pattern, text)
+
+    def validate_urls_in_text(self, text):
+        """
+        텍스트 내의 URL이 허용 조건에 부합하는 지 확인
+        조건에 부합하지 않을 경우 False와 해당 URL을 반환
+        """
+        logger.debug("URL 검증 시작")
+        urls = self.extract_urls(text)
+        for url in urls :
+            parsed = urlparse(url)
+            if parsed.scheme != "https":
+                logger.debug(f"URL 오류: {url}")
+                return False, url
+            if parsed.netloc.lower() != ALLOWED_DOMAIN:
+                logger.debug(f"허용되지 않은 도메인: {url}")
+                return False, url
+            if not parsed.path.startswith(ALLOWED_PATH_PREFIX):
+                logger.debug(f"허용되지 않은 경로: {url}")
+                return False, url
+        return True, None
 
     async def relay_to_postfix(self, envelope):
         """필터링을 통과한 이메일을 Postfix 서버(10025 포트)로 릴레이"""
