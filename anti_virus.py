@@ -30,6 +30,8 @@ MIME_MAPPING = {
 ALLOWED_DOMAIN = "www.gothroughsecurity.store"
 ALLOWED_PATH_PREFIX = "/wordpress/"
 
+MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 첨부 파일 최대 크기: 10MB (단위: 바이트)
+
 def decode_mime_words(s):
     """MIME 인코딩된 문자열을 디코딩하는 함수"""
     decoded_fragments = decode_header(s)
@@ -98,6 +100,12 @@ class FilterHandler:
             print(block_msg)
             logger.info(block_msg)
             return "554 Message rejected due to untrusted URL"
+
+        if self.has_large_attachment(mail_data):
+            block_msg = f"Blocked: Attachment exceeds size limit of {MAX_ATTACHMENT_SIZE / (1024 * 1024)} MB"
+            print(block_msg)
+            logger.info(block_msg)
+            return f"554 Message rejected due to attachment size limit ({MAX_ATTACHMENT_SIZE / (1024 * 1024)} MB)"
 
 
         # 필터링 통과 시 Postfix로 릴레이 (추후 안티바이러스 기능 등 추가 가능)
@@ -210,6 +218,26 @@ class FilterHandler:
                 return False, url
         return True, None
 
+    def has_large_attachment(self, mail_data):
+        """
+        첨부 파일이 최대 크기 제한을 초과하는지 검사.
+        """
+        logger.debug("첨부파일 크기 확인 시작")
+        for idx, part in enumerate(mail_data.walk()):
+            filename = part.get_filename() or part.get_param("name")
+            if filename:
+                filename = decode_mime_words(filename)
+                content_disposition = part.get("Content-Disposition", "").lower()
+                if "attachment" in content_disposition:
+                    file_size = len(part.get_payload(decode=True))
+                    logger.debug(f"Part {idx} 파일명: {filename}, 크기: {file_size} 바이트")
+                    if file_size > MAX_ATTACHMENT_SIZE:
+                        logger.info(
+                            f"Blocked attachment: {filename} exceeds size limit of {MAX_ATTACHMENT_SIZE / (1024 * 1024)} MB")
+                        return True
+        logger.debug("첨부파일 크기 확인 완료")
+        return False
+    
     async def relay_to_postfix(self, envelope):
         """필터링을 통과한 이메일을 Postfix 서버(10025 포트)로 릴레이"""
         relay_host = "192.168.0.151"  # 메일 서버 IP
@@ -257,4 +285,3 @@ if __name__ == "__main__":
         asyncio.get_event_loop().run_forever()
     except KeyboardInterrupt:
         pass
-
