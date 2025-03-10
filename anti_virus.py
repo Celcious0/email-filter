@@ -125,21 +125,28 @@ class FilterHandler:
             logger.info(block_msg)
             return f"554 Message rejected due to attachment size limit ({MAX_ATTACHMENT_SIZE / (1024 * 1024)} MB)"
 
-        # 5. 압축 포맷 파일 추출
+        # 5. 압축 포맷 파일 추출 및 내부 파일 검사
         extracted_files = self.extract_compressed_files(mail_data)
         if extracted_files:
             logger.debug(f"추출된 압축 파일 내 파일 목록: {list(extracted_files.keys())}")
             for fname, content in extracted_files.items():
+                # 내부 파일의 MD5 해시 계산
+                file_md5 = self.compute_md5(content)
+                logger.debug(f"파일 {fname} MD5: {file_md5}")
+                # 내부 파일의 해시가 악성 해시 리스트에 있는지 확인
+                if file_md5 in MALICIOUS_HASHES:
+                    block_msg = f"Blocked: Extracted file {fname} contains malicious MD5 hash {file_md5}"
+                    logger.info(block_msg)
+                    return "554 Message rejected due to malicious content in extracted file"
+                # 추가로 기존의 악성 코드 키워드 검색 등 다른 검사를 수행할 수도 있음
                 file_type = self.identify_file_type(fname, content)
                 logger.debug(f"파일 {fname} 식별된 타입: {file_type}")
-                # 6. 악성 코드 패턴 키워드 검색 알고리즘 (추출된 파일 내용 검사)
-                # content가 bytes인 경우 디코딩하여 문자열로 변환
                 content_str = content.decode(errors='ignore') if isinstance(content, bytes) else content
                 if self.search_malicious_code_keywords(content_str):
                     block_msg = f"Blocked: Extracted file {fname} contains malicious code patterns"
-                    print(block_msg)
                     logger.info(block_msg)
                     return "554 Message rejected due to malicious code in extracted compressed file"
+
 
         # 7 ~ 9. HTML 파싱 및 데이터 정규화, 스크립트 태그/인라인 이벤트 감지, 자바스크립트 코드 패턴 차단
         if "<html" in body.lower():
