@@ -205,7 +205,7 @@ class FilterHandler:
         return "250 OK" if relay_success else "451 Temporary failure"
 
     def extract_body(self, mail_data):
-    """본문 추출 함수: multipart인 경우 text/plain 및 text/html 파트를 추출"""
+        """본문 추출 함수: multipart인 경우 text/plain 및 text/html 파트를 추출"""
         logger.debug("본문 추출 시작")
         if mail_data.is_multipart():
             body_parts = []
