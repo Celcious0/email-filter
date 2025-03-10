@@ -97,11 +97,7 @@ class FilterHandler:
 
         # Subject 디코딩
         subject_raw = mail_data["Subject"] or ""
-        subject_parts = decode_header(subject_raw)
-        subject = "".join(
-            part.decode(encoding or "utf-8") if isinstance(part, bytes) else part
-            for part, encoding in subject_parts
-        )
+        subject = self.decode_mime_words(subject_raw)
         logger.debug(f"디코딩된 Subject: {subject}")
 
         # 본문 추출 (text/plain 및 text/html 모두 추출)
