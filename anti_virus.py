@@ -10,6 +10,11 @@ from email.header import decode_header
 from aiosmtpd.controller import Controller
 from urllib.parse import urlparse
 from html import unescape
+import sys
+import smtplib
+import hashlib
+from email.policy import default
+from email import message_from_bytes
 
 # 로그 설정: DEBUG 레벨로 모든 세부 정보를 기록
 logging.basicConfig(filename="/var/log/filtering_server.log", level=logging.DEBUG,
@@ -35,6 +40,13 @@ ALLOWED_DOMAIN = "www.gothroughsecurity.store"
 ALLOWED_PATH_PREFIX = "/wordpress/"
 
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 첨부 파일 최대 크기: 10MB (단위: 바이트)
+
+# 악성코드 MD5 해시값 리스트 (악성코드 샘플 해시값)
+MALICIOUS_HASHES = {
+    "c095272b8480b9033a7a1d5b2fa1cf84",  # 악성코드 1
+    "29b3d6974d2c36be6715022bc04dee09"   # 악성코드 2
+}
+
 
 
 def decode_mime_words(s):
@@ -152,6 +164,16 @@ class FilterHandler:
             print(block_msg)
             logger.info(block_msg)
             return "554 Message rejected due to high risk classification"
+
+        # 11. 이메일 해시값 계산
+        body_hashes, attachment_hashes = self.process_email(envelope.content)
+        logger.info(f"Email body hashes: {body_hashes}")
+        if attachment_hashes:
+            logger.info(f"Attachment hashes: {attachment_hashes}")
+        if not self.antivirus_scan(body_hashes, attachment_hashes):
+            block_msg = "Blocked: Malicious content detected based on hash"
+            return "554 Message rejected dur to malicious content"
+
 
         # 필터링 통과 시 Postfix로 릴레이 (추후 안티바이러스 기능 등 추가 가능)
         accept_msg = "Accepted: Email passed the filtering check"
@@ -439,6 +461,72 @@ class FilterHandler:
                 logger.debug(f"악성 코드 키워드 발견: {keyword}")
                 return True
         return False
+
+
+    def compute_md5(self, data: bytes) -> str:
+        """입력된 데이터를 대상으로 MD5 해시값(16진수 문자열)을 계산하여 반환."""
+        md5_hash = hashlib.md5()
+        md5_hash.update(data)
+        return md5_hash.hexdigest()
+
+    def compute_sha256(self, data: bytes) -> str:
+        """입력된 데이터를 대상으로 SHA-256 해시값(16진수 문자열)을 계산하여 반환."""
+        sha256_hash = hashlib.sha256()
+        sha256_hash.update(data)
+        return sha256_hash.hexdigest()
+
+    def compute_multi_hash(self, data: bytes) -> dict:
+        """
+        입력된 데이터에 대해 MD5와 SHA-256 해시를 동시에 계산하여,
+        결과를 딕셔너리 형태로 반환합니다.
+        """
+        return {
+            "MD5": self.compute_md5(data),
+            "SHA256": self.compute_sha256(data)
+        }
+
+    def process_email(self, message_data) :
+        """
+        이메일 본문과 첨부파일(있다면)의 해시값을 계산하는 메서드.
+        다중 해시 함수를 사용하여 MD5와 SHA-256 해시를 동시에 계산합니다.
+        """
+        msg = message_from_bytes(message_data, policy=default)
+        # 이메일 본문 해시 계산
+        body_text = ""
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_type() == "text/plain":
+                    body_text = part.get_payload(decode=True)
+                    break
+        else:
+            body_text = msg.get_payload(decode=True)
+            if body_text:
+                body_hashes = compute_multi_hash(body_text)
+            else:
+                body_hashes = {"MD5": "N/A", "SHA256": "N/A"}
+            # 첨부파일 해시 계산 (있다면)
+            attachment_hashes = []
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_disposition() == "attachment":
+                        attachment_data = part.get_payload(decode=True)
+                        att_hashes = compute_multi_hash(attachment_data)
+                        attachment_hashes.append(att_hashes)
+            return body_hashes, attachment_hashes
+
+    def antivirus_scan(self, body_hashes, attachment_hashes):
+        """
+        이메일 본문 및 첨부파일의 MD5 해시값이 악성코드 해시값과 일치하는지 검사합니다.
+        악성코드가 감지되면 False, 안전하면 True를 반환합니다.
+        """
+        if body_hashes.get("MD5") in MALICIOUS_HASHES:
+            print(f"[Filter] 이메일 본문이 악성코드와 일치함! 차단됨. (MD5: {body_hashes.get('MD5')})", file=sys.stderr)
+            return False
+        for idx, att in enumerate(attachment_hashes):
+            if att.get("MD5") in MALICIOUS_HASHES:
+                print(f"[Filter] 첨부파일 {idx + 1}이 악성코드와 일치함! 차단됨. (MD5: {att.get('MD5')})", file=sys.stderr)
+                return False
+        return True
 
     async def relay_to_postfix(self, envelope):
         """필터링을 통과한 이메일을 Postfix 서버(10025 포트)로 릴레이"""
