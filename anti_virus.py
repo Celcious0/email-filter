@@ -51,14 +51,18 @@ MALICIOUS_HASHES = {
 
 class FilterHandler:
     def decode_mime_words(self, s):
-        """
-        MIME 인코딩된 문자열을 디코딩하는 함수.
-        """
-        decoded_fragments = decode_header(s)
-        return ''.join(
-            fragment.decode(encoding or 'utf-8') if isinstance(fragment, bytes) else fragment
-            for fragment, encoding in decoded_fragments
-        )
+    decoded_fragments = decode_header(s)
+    result = []
+    for fragment, encoding in decoded_fragments:
+        if isinstance(fragment, bytes):
+            # encoding 값이 None 또는 "unknown-8bit"이면, fallback 인코딩 사용
+            if encoding is None or encoding.lower() == "unknown-8bit":
+                encoding = "utf-8"
+            result.append(fragment.decode(encoding, errors="replace"))
+        else:
+            result.append(fragment)
+    return "".join(result)
+
 
     def sanitize_html_content(self, html_content):
         """
