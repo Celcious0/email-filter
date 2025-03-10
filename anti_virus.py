@@ -54,7 +54,8 @@ ALLOWED_DOMAIN_PATHS = {
     "ssl.pstatic.net": ["/"],
     "dmfiles.naver.net": ["/"],
     "bigfile.mail.naver.com": ["/download"],
-    "mybox.naver.com": ["/"]
+    "mybox.naver.com": ["/"],
+    "mail.naver.com": ["/"]
 }
 
 
