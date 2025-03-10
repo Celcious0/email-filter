@@ -63,7 +63,6 @@ class FilterHandler:
                 result.append(fragment)
         return "".join(result)
 
-
     def sanitize_html_content(self, html_content):
         """
         bleach 라이브러리를 이용해 HTML을 정화(Sanitize)합니다.
@@ -72,7 +71,6 @@ class FilterHandler:
         allowed_tags = [
             'p', 'br', 'b', 'i', 'u', 'strong', 'em',
             'ul', 'ol', 'li', 'span', 'div', 'a', 'img'
-            # 필요 시 table, h1~h6 등 추가 가능
         ]
         allowed_attributes = {
             'a': ['href', 'title'],
@@ -98,7 +96,7 @@ class FilterHandler:
         # Subject 디코딩
         subject_raw = mail_data["Subject"] or ""
         subject = self.decode_mime_words(subject_raw)
-        logger.debug(f"디코딩된 Subject: {subject}") 
+        logger.debug(f"디코딩된 Subject: {subject}")
 
         # 본문 추출 (text/plain 및 text/html 모두 추출)
         body = self.extract_body(mail_data)
@@ -182,7 +180,7 @@ class FilterHandler:
         # 8. 위험 분류 기준 설정 및 분류 알고리즘 구현
         risk_level = self.classify_risk(subject, body, mail_data)
         logger.info(f"위험 분류 결과: {risk_level}")
-        if risk_level >= "Medium":
+        if risk_level == "Medium" or risk_level == "High":
             block_msg = "Blocked: Email classified as high risk"
             print(block_msg)
             logger.info(block_msg)
@@ -213,7 +211,6 @@ class FilterHandler:
                 if part.get_content_type() in ["text/plain", "text/html"] and not part.get_filename():
                     payload = part.get_payload(decode=True)
                     if payload:
-                        # 인코딩 정보를 가져오고, 없거나 "unknown-8bit"이면 "utf-8" 사용
                         charset = part.get_content_charset()
                         if charset is None or charset.lower() == "unknown-8bit":
                             charset = "utf-8"
@@ -234,7 +231,6 @@ class FilterHandler:
                 body_text = ""
             logger.debug("단일 파트 본문 추출 완료")
             return body_text
-
 
     def contains_blocked_keyword(self, subject, body):
         """이메일 제목과 본문에서 필터링할 키워드가 포함되었는지 검사"""
@@ -418,46 +414,6 @@ class FilterHandler:
             return "Medium"
         else:
             return "Low"
-
-    def parse_and_normalize_html(self, html_content):
-        """
-        HTML 파싱 및 데이터 정규화 기능.
-        """
-        text = re.sub(r'<[^>]+>', ' ', html_content)
-        text = unescape(text)
-        text = re.sub(r'\s+', ' ', text).strip()
-        logger.debug("HTML 데이터 정규화 완료")
-        return text
-
-    def detect_script_tags_and_inline_events(self, html_content):
-        """
-        HTML 내용에서 <script> 태그와 인라인 이벤트 감지.
-        """
-        script_tag_pattern = re.compile(r'<script\b[^>]*>(.*?)</script>', re.IGNORECASE | re.DOTALL)
-        if script_tag_pattern.search(html_content):
-            logger.debug("스크립트 태그 감지됨")
-            return True
-        inline_event_pattern = re.compile(r'\son\w+\s*=', re.IGNORECASE)
-        if inline_event_pattern.search(html_content):
-            logger.debug("인라인 이벤트 감지됨")
-            return True
-        return False
-
-    def block_javascript_code_patterns(self, js_code):
-        """
-        자바스크립트 코드 내에서 위험한 코드 패턴을 차단.
-        """
-        dangerous_patterns = [
-            r'eval\s*\(',
-            r'document\.write\s*\(',
-            r'setTimeout\s*\(',
-            r'setInterval\s*\('
-        ]
-        for pattern in dangerous_patterns:
-            if re.search(pattern, js_code, re.IGNORECASE):
-                logger.debug(f"위험한 자바스크립트 패턴 감지됨: {pattern}")
-                return True
-        return False
 
     def search_malicious_code_keywords(self, content):
         """
