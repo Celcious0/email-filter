@@ -502,7 +502,7 @@ class FilterHandler:
             body_text = msg.get_payload(decode=True)
             
         if body_text:
-            body_hashes = compute_multi_hash(body_text)
+            body_hashes = self.compute_multi_hash(body_text)
         else:
             body_hashes = {"MD5": "N/A", "SHA256": "N/A"}
         # 첨부파일 해시 계산 (있다면)
@@ -511,7 +511,7 @@ class FilterHandler:
             for part in msg.walk():
                 if part.get_content_disposition() == "attachment":
                     attachment_data = part.get_payload(decode=True)
-                    att_hashes = compute_multi_hash(attachment_data)
+                    att_hashes = self.compute_multi_hash(attachment_data)
                     attachment_hashes.append(att_hashes)
         return body_hashes, attachment_hashes
 
