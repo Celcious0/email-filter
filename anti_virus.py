@@ -49,8 +49,15 @@ MALICIOUS_HASHES = {
 }
 
 # 허용 도메인 및 경로 패턴 목록 (필요에 따라 추가)
-ALLOWED_DOMAINS = ["www.gothroughsecurity.store", "ssl.pstatic.net", "dmfiles.naver.net"]
-ALLOWED_PATH_PREFIXES = ["/wordpress/", "/static/pwe/"]
+ALLOWED_DOMAINS = [
+    "www.gothroughsecurity.store", 
+    "ssl.pstatic.net", 
+    "dmfiles.naver.net",
+    "bigfile.mail.naver.com"
+]
+
+ALLOWED_PATH_PREFIXES = ["/wordpress/", "/static/pwe/", "/download"]
+
 
 
 class FilterHandler:
