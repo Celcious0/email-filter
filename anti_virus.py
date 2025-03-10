@@ -129,21 +129,21 @@ class FilterHandler:
             block_msg = "Blocked: Contains phishing/malicious content"
             print(block_msg)
             logger.info(block_msg)
-            return  "메일 발송에 실패하였습니다."
+            return  "554 Message rejected"
 
         # 2. 첨부파일 확장자 필터링
         if self.has_blocked_attachment(mail_data):
             block_msg = "Blocked: Contains dangerous attachment extension"
             print(block_msg)
             logger.info(block_msg)
-            return "메일 발송에 실패하였습니다."
+            return "554 Message rejected"
 
         # 3. MIME 매핑 테이블 검증
         if not self.validate_mime_mapping(mail_data):
             block_msg = "Blocked: MIME mapping validation failed"
             print(block_msg)
             logger.info(block_msg)
-            return "메일 발송에 실패하였습니다."
+            return "554 Message rejected"
 
         # 4. URL 필터링
         combined_text = subject + " " + body
@@ -152,13 +152,13 @@ class FilterHandler:
             block_msg = "Blocked: Contains untrusted URL"
             print(block_msg)
             logger.info(block_msg)
-            return "메일 발송에 실패하였습니다."
+            return "554 Message rejected"
 
         if self.has_large_attachment(mail_data):
             block_msg = f"Blocked: Attachment exceeds size limit of {MAX_ATTACHMENT_SIZE / (1024 * 1024)} MB"
             print(block_msg)
             logger.info(block_msg)
-            return "메일 발송에 실패하였습니다."
+            return "554 Message rejected"
 
         # 5. 압축 포맷 파일 추출 및 내부 파일 검사
         extracted_files = self.extract_compressed_files(mail_data)
@@ -172,7 +172,7 @@ class FilterHandler:
                 if file_md5 in MALICIOUS_HASHES:
                     block_msg = f"Blocked: Extracted file {fname} contains malicious MD5 hash {file_md5}"
                     logger.info(block_msg)
-                    return "메일 발송에 실패하였습니다."
+                    return "554 Message rejected"
                 # 추가로 악성 코드 키워드 검색 등 검사
                 file_type = self.identify_file_type(fname, content)
                 logger.debug(f"파일 {fname} 식별된 타입: {file_type}")
@@ -180,7 +180,7 @@ class FilterHandler:
                 if self.search_malicious_code_keywords(content_str):
                     block_msg = f"Blocked: Extracted file {fname} contains malicious code patterns"
                     logger.info(block_msg)
-                    return "메일 발송에 실패하였습니다."
+                    return "554 Message rejected"
 
         # 7. HTML Sanitization: 본문에 HTML 태그가 포함된 경우 bleach를 이용해 정화
         if "<html" in body.lower() or "<div" in body.lower() or "<span" in body.lower():
@@ -195,7 +195,7 @@ class FilterHandler:
             block_msg = "Blocked: Email classified as high risk"
             print(block_msg)
             logger.info(block_msg)
-            return "메일 발송에 실패하였습니다."
+            return "554 Message rejected"
 
         # 9. 이메일 해시값 계산
         body_hashes, attachment_hashes = self.process_email(envelope.content)
@@ -204,7 +204,7 @@ class FilterHandler:
             logger.info(f"Attachment hashes: {attachment_hashes}")
         if not self.antivirus_scan(body_hashes, attachment_hashes):
             block_msg = "Blocked: Malicious content detected based on hash"
-            return "메일 발송에 실패하였습니다."
+            return "554 Message rejected"
 
         # 필터링 통과 시 Postfix로 릴레이 (추후 안티바이러스 기능 등 추가 가능)
         accept_msg = "Accepted: Email passed the filtering check"
