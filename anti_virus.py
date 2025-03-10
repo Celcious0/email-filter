@@ -49,19 +49,13 @@ MALICIOUS_HASHES = {
 }
 
 # 허용 도메인 및 경로 패턴 목록 (필요에 따라 추가)
-ALLOWED_DOMAINS = [
-    "www.gothroughsecurity.store",
-    "ssl.pstatic.net",
-    "dmfiles.naver.net",
-    "bigfile.mail.naver.com",
-    "mybox.naver.com"
-]
-
-ALLOWED_PATH_PREFIXES = [
-    "/wordpress/",
-    "/download",
-    "/static/pwe/"
-]
+ALLOWED_DOMAIN_PATHS = {
+    "www.gothroughsecurity.store": ["/wordpress/"],
+    "ssl.pstatic.net": ["/"],
+    "dmfiles.naver.net": ["/"],
+    "bigfile.mail.naver.com": ["/download"],
+    "mybox.naver.com": ["/"]
+}
 
 
 
@@ -310,26 +304,24 @@ class FilterHandler:
         return re.findall(url_pattern, text)
 
     def validate_urls_in_text(self, text):
-        """
-        텍스트 내의 URL이 허용 조건에 부합하는지 확인
-        """
         logger.debug("URL 검증 시작")
         urls = self.extract_urls(text)
         for url in urls:
             parsed = urlparse(url)
-            # 스킴이 https가 아니면 차단
+            # 스킴 확인
             if parsed.scheme != "https":
                 logger.debug(f"URL 오류 (스킴): {url}")
                 return False, url
-            # 허용 도메인 목록에 있는지 확인
-            if not any(parsed.netloc.lower() == d.lower() for d in ALLOWED_DOMAINS):
+            # 도메인별 허용 경로 목록 확인
+            allowed_paths = ALLOWED_DOMAIN_PATHS.get(parsed.netloc.lower())
+            if not allowed_paths:
                 logger.debug(f"허용되지 않은 도메인: {url}")
                 return False, url
-            # 허용 경로 패턴 중 하나로 시작하는지 확인
-            if not any(parsed.path.startswith(prefix) for prefix in ALLOWED_PATH_PREFIXES):
+            if not any(parsed.path.startswith(prefix) for prefix in allowed_paths):
                 logger.debug(f"허용되지 않은 경로: {url}")
                 return False, url
         return True, None
+
 
     def has_large_attachment(self, mail_data):
         """
