@@ -206,34 +206,34 @@ class FilterHandler:
 
     def extract_body(self, mail_data):
     """본문 추출 함수: multipart인 경우 text/plain 및 text/html 파트를 추출"""
-    logger.debug("본문 추출 시작")
-    if mail_data.is_multipart():
-        body_parts = []
-        for idx, part in enumerate(mail_data.walk()):
-            if part.get_content_type() in ["text/plain", "text/html"] and not part.get_filename():
-                payload = part.get_payload(decode=True)
-                if payload:
-                    # 인코딩 정보를 가져오고, 없거나 "unknown-8bit"이면 "utf-8" 사용
-                    charset = part.get_content_charset()
-                    if charset is None or charset.lower() == "unknown-8bit":
-                        charset = "utf-8"
-                    decoded_payload = payload.decode(charset, errors="replace")
-                    body_parts.append(decoded_payload)
-                    logger.debug(f"Part {idx} ({part.get_content_type()}) 추출됨: {decoded_payload[:50]}...")
-        body_text = "\n".join(body_parts)
-        logger.debug("multipart 본문 추출 완료")
-        return body_text
-    else:
-        payload = mail_data.get_payload(decode=True)
-        if payload:
-            charset = mail_data.get_content_charset()
-            if charset is None or charset.lower() == "unknown-8bit":
-                charset = "utf-8"
-            body_text = payload.decode(charset, errors="replace")
+        logger.debug("본문 추출 시작")
+        if mail_data.is_multipart():
+            body_parts = []
+            for idx, part in enumerate(mail_data.walk()):
+                if part.get_content_type() in ["text/plain", "text/html"] and not part.get_filename():
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        # 인코딩 정보를 가져오고, 없거나 "unknown-8bit"이면 "utf-8" 사용
+                        charset = part.get_content_charset()
+                        if charset is None or charset.lower() == "unknown-8bit":
+                            charset = "utf-8"
+                        decoded_payload = payload.decode(charset, errors="replace")
+                        body_parts.append(decoded_payload)
+                        logger.debug(f"Part {idx} ({part.get_content_type()}) 추출됨: {decoded_payload[:50]}...")
+            body_text = "\n".join(body_parts)
+            logger.debug("multipart 본문 추출 완료")
+            return body_text
         else:
-            body_text = ""
-        logger.debug("단일 파트 본문 추출 완료")
-        return body_text
+            payload = mail_data.get_payload(decode=True)
+            if payload:
+                charset = mail_data.get_content_charset()
+                if charset is None or charset.lower() == "unknown-8bit":
+                    charset = "utf-8"
+                body_text = payload.decode(charset, errors="replace")
+            else:
+                body_text = ""
+            logger.debug("단일 파트 본문 추출 완료")
+            return body_text
 
 
     def contains_blocked_keyword(self, subject, body):
