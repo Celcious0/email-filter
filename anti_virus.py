@@ -17,7 +17,7 @@ from email.policy import default
 from email import message_from_bytes
 
 # 로그 설정: DEBUG 레벨로 모든 세부 정보를 기록
-logging.basicConfig(filename="/var/log/filtering_server.log", level=logging.DEBUG,
+logging.basicConfig(filename="/var/log/filtering_server.log", level=logging.INFO,
                     format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ class FilterHandler:
             if filename:
                 filename = decode_mime_words(filename)
             content_type = part.get_content_type()
-            logger.debug(f"Part {idx}: filename={filename}, content_type={content_type}")
+            logger.info(f"Part {idx}: filename={filename}, content_type={content_type}")
 
         # 1. 키워드 필터링
         if self.contains_blocked_keyword(subject, body):
@@ -128,7 +128,7 @@ class FilterHandler:
         # 5. 압축 포맷 파일 추출 및 내부 파일 검사
         extracted_files = self.extract_compressed_files(mail_data)
         if extracted_files:
-            logger.debug(f"추출된 압축 파일 내 파일 목록: {list(extracted_files.keys())}")
+            logger.info(f"추출된 압축 파일 내 파일 목록: {list(extracted_files.keys())}")
             for fname, content in extracted_files.items():
                 # 내부 파일의 MD5 해시 계산
                 file_md5 = self.compute_md5(content)
@@ -165,8 +165,8 @@ class FilterHandler:
 
         # 10. 위험 분류 기준 설정 및 분류 알고리즘 구현
         risk_level = self.classify_risk(subject, body, mail_data)
-        logger.debug(f"위험 분류 결과: {risk_level}")
-        if risk_level == "High":
+        logger.info(f"위험 분류 결과: {risk_level}")
+        if risk_level >= "Low":
             block_msg = "Blocked: Email classified as high risk"
             print(block_msg)
             logger.info(block_msg)
