@@ -166,7 +166,7 @@ class FilterHandler:
         # 10. 위험 분류 기준 설정 및 분류 알고리즘 구현
         risk_level = self.classify_risk(subject, body, mail_data)
         logger.info(f"위험 분류 결과: {risk_level}")
-        if risk_level >= "Low":
+        if risk_level >= "Medium":
             block_msg = "Blocked: Email classified as high risk"
             print(block_msg)
             logger.info(block_msg)
