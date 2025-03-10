@@ -369,8 +369,8 @@ class FilterHandler:
         이메일의 subject, body, 첨부파일 등을 기반으로 위험 수준을 분류.
         위험 점수 기준:
           - 기본 위험 점수: 0
-          - BLOCKED_KEYWORDS 포함: +50 점
-          - 위험한 첨부파일 존재: +30 점
+          - BLOCKED_KEYWORDS 포함: +70 점
+          - 위험한 첨부파일 존재: +70 점
           - URL 필터링 실패 시: +20 점
           - 악성 코드 키워드 존재 시: +40 점
         위험 점수가 70 이상이면 'High', 40~69면 'Medium', 그 미만이면 'Low'로 분류.
@@ -379,8 +379,8 @@ class FilterHandler:
         content = (subject + " " + body).lower()
         for keyword in BLOCKED_KEYWORDS:
             if keyword in content:
-                score += 50
-                logger.debug(f"위험 점수 추가: {keyword} -> +50")
+                score += 70
+                logger.debug(f"위험 점수 추가: {keyword} -> +70")
         # 첨부파일 위험 점수 추가
         for idx, part in enumerate(mail_data.walk()):
             filename = part.get_filename() or part.get_param("name")
@@ -388,8 +388,8 @@ class FilterHandler:
                 filename = decode_mime_words(filename)
                 ext = os.path.splitext(filename)[1].lower()
                 if ext in BLOCKED_EXTENSIONS:
-                    score += 30
-                    logger.debug(f"첨부파일 위험 점수 추가: {filename} -> +30")
+                    score += 70
+                    logger.debug(f"첨부파일 위험 점수 추가: {filename} -> +70")
         # URL 검사 위험 점수 추가
         urls = self.extract_urls(content)
         if urls:
