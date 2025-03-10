@@ -48,6 +48,10 @@ MALICIOUS_HASHES = {
     "29b3d6974d2c36be6715022bc04dee09"   # 악성코드 2
 }
 
+# 허용 도메인 및 경로 패턴 목록 (필요에 따라 추가)
+ALLOWED_DOMAINS = ["www.gothroughsecurity.store", "dmfiles.naver.net"]
+ALLOWED_PATH_PREFIXES = ["/wordpress/", "/download/"]
+
 
 class FilterHandler:
     def decode_mime_words(self, s):
@@ -290,7 +294,7 @@ class FilterHandler:
         """
         정규표현식을 사용하여 텍스트 내의 URL을 추출
         """
-        url_pattern = r'(https?://[^\s<>"]+|(?:www\.)?[gG]othroughsecurity\.store[^\s<>"]*)'
+        url_pattern = r'(https?://[^\s<>"]+)'
         return re.findall(url_pattern, text)
 
     def validate_urls_in_text(self, text):
@@ -301,13 +305,16 @@ class FilterHandler:
         urls = self.extract_urls(text)
         for url in urls:
             parsed = urlparse(url)
+            # 스킴이 https가 아니면 차단
             if parsed.scheme != "https":
-                logger.debug(f"URL 오류: {url}")
+                logger.debug(f"URL 오류 (스킴): {url}")
                 return False, url
-            if parsed.netloc.lower() != ALLOWED_DOMAIN:
+            # 허용 도메인 목록에 있는지 확인
+            if not any(parsed.netloc.lower() == d.lower() for d in ALLOWED_DOMAINS):
                 logger.debug(f"허용되지 않은 도메인: {url}")
                 return False, url
-            if not parsed.path.startswith(ALLOWED_PATH_PREFIX):
+            # 허용 경로 패턴 중 하나로 시작하는지 확인
+            if not any(parsed.path.startswith(prefix) for prefix in ALLOWED_PATH_PREFIXES):
                 logger.debug(f"허용되지 않은 경로: {url}")
                 return False, url
         return True, None
