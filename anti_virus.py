@@ -18,7 +18,7 @@ from email import message_from_bytes
 import bleach
 
 # 로그 설정: DEBUG 레벨로 모든 세부 정보를 기록
-logging.basicConfig(filename="/var/log/filtering_server.log", level=logging.INFO,
+logging.basicConfig(filename="/var/log/filtering_server.log", level=logging.DEBUG,
                     format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -49,8 +49,8 @@ MALICIOUS_HASHES = {
 }
 
 # 허용 도메인 및 경로 패턴 목록 (필요에 따라 추가)
-ALLOWED_DOMAINS = ["www.gothroughsecurity.store", "dmfiles.naver.net"]
-ALLOWED_PATH_PREFIXES = ["/wordpress/", "/download/"]
+ALLOWED_DOMAINS = ["www.gothroughsecurity.store", "ssl.pstatic.net", "dmfiles.naver.net"]
+ALLOWED_PATH_PREFIXES = ["/wordpress/", "/static/pwe/"]
 
 
 class FilterHandler:
