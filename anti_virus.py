@@ -62,7 +62,7 @@ class FilterHandler:
         result = []
         for fragment, encoding in decoded_fragments:
             if isinstance(fragment, bytes):
-                encoding = encoding or "utf-8"
+                encoding = encoding if encoding and encoding.lower() != "unknown-8bit" else "utf-8"
                 result.append(fragment.decode(encoding, errors="replace"))
             else:
                 result.append(fragment)
