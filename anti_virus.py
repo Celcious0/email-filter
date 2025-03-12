@@ -370,7 +370,7 @@ class FilterHandler:
 
 
 
-    def identify_file_type(self, filename):
+    def identify_file_type(self, filename, file_content):
         """
         파일의 콘텐츠와 파일명을 바탕으로 파일 타입을 식별.
         """
