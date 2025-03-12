@@ -75,10 +75,9 @@ class FilterHandler:
         """
         allowed_tags = [
             'p', 'br', 'b', 'i', 'u', 'strong', 'em',
-            'ul', 'ol', 'li', 'span', 'div', 'a', 'img'
+            'ul', 'ol', 'li', 'span', 'div', 'img'
         ]
         allowed_attributes = {
-            'a': ['title'],
             'img': ['alt', 'title'],
             'table': ['border', 'width', 'height'],
             'tr' : ['colspan', 'rowspan', 'align', 'valign'],
