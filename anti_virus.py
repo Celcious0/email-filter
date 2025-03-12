@@ -101,6 +101,25 @@ class FilterHandler:
         mail_data = BytesParser().parsebytes(envelope.content)
         logger.debug("이메일 내용 파싱 완료.")
 
+        for part in mail_data.walk():
+            if part.get_content_type() == "text/html":
+                raw_html = part.get_payload(decode=True)
+                charset = part.get_content_charset() or "utf-8"
+                original_html = raw_html.decode(charset, errors="replace")
+
+                cleaned_html = self.sanitize_html_content(original_html)
+
+                part.set_payload(cleaned_html)
+                if "Content-Transfer-Encoding" in part :
+                    del part["Content-Transfer-Encoding"]
+                part.set_charset(charset)
+
+        from email.generator import BytesGenerator
+        from io import BytesIO
+        buf = BytesIO()
+        BytesGenerator(buf, mangle_from=False).flatten(mail_data)
+        envelope.content = buf.getvalue()
+
         # Subject 디코딩
         subject_raw = mail_data["Subject"] or ""
         subject = self.decode_mime_words(subject_raw)
