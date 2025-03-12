@@ -78,8 +78,12 @@ class FilterHandler:
             'ul', 'ol', 'li', 'span', 'div', 'a', 'img'
         ]
         allowed_attributes = {
-            'a': ['href', 'title'],
-            'img': ['src', 'alt', 'title'],
+            'a': ['title'],
+            'img': ['alt', 'title'],
+            'table': ['border', 'width', 'height'],
+            'tr' : ['colspan', 'rowspan', 'align', 'valign'],
+            'td': ['colspan', 'rowspan', 'align', 'valign'],
+            'th': ['colspan', 'rowspan', 'align', 'valign'],
             'span': ['style'],
             'div': ['style'],
             '*': ['class']
