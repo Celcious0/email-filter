@@ -41,8 +41,9 @@ MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 첨부 파일 최대 크기: 10MB (단
 
 # 악성코드 MD5 해시값 리스트
 MALICIOUS_HASHES = {
-    "c095272b8480b9033a7a1d5b2fa1cf84",  # 악성코드 1
-    "29b3d6974d2c36be6715022bc04dee09"   # 악성코드 2
+    "c095272b8480b9033a7a1d5b2fa1cf84",
+    "29b3d6974d2c36be6715022bc04dee09",
+    "75ef3825e165902a56d2e19d5741bf4c"
 }
 
 # 허용 도메인 및 경로 패턴 목록 (필요에 따라 추가)
@@ -61,7 +62,7 @@ class FilterHandler:
         result = []
         for fragment, encoding in decoded_fragments:
             if isinstance(fragment, bytes):
-                encoding = encoding if encoding and encoding.lower() != "unknown-8bit" else "utf-8"
+                encoding = encoding or "utf-8"
                 result.append(fragment.decode(encoding, errors="replace"))
             else:
                 result.append(fragment)
