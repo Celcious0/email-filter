@@ -34,7 +34,8 @@ MIME_MAPPING = {
     '.pdf': 'application/pdf',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
-    '.png': 'image/png'
+    '.png': 'image/png',
+    '.zip': 'application/x-zip-compressed'
 }
 
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 첨부 파일 최대 크기: 10MB (단위: 바이트)
@@ -184,6 +185,11 @@ class FilterHandler:
                 # 추가로 악성 코드 키워드 검색 등 검사
                 file_type = self.identify_file_type(fname, content)[0]
                 logger.debug(f"파일 {fname} 식별된 타입: {file_type}")
+                # 확장자 검사 추가
+                internal_ext = os.path.splitext(fname)[1].lower()
+                if internal_ext in BLOCKED_EXTENSIONS:
+                    logger.info(f"Blocked file inside compressed archive: {fname} with extension {internal_ext}")
+                    return "554 Message rejected"  # 또는 적절한 처리를 수행
                 content_str = content.decode(errors='ignore') if isinstance(content, bytes) else content
                 if self.search_malicious_code_keywords(content_str):
                     block_msg = f"Blocked: Extracted file {fname} contains malicious code patterns"
