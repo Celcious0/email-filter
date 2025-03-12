@@ -178,7 +178,11 @@ class FilterHandler:
             return "554 Message rejected"
 
         # 5. 압축 포맷 파일 추출 및 내부 파일 검사
-        extracted_files = self.extract_compressed_files(mail_data)
+        try :
+            extracted_files = self.extract_compressed_files(mail_data)
+        except Exception as e:
+            logger.info(str(e))
+            return "554 Message rejected"
         if extracted_files:
             logger.info(f"추출된 압축 파일 내 파일 목록: {list(extracted_files.keys())}")
             for fname, content in extracted_files.items():
@@ -370,7 +374,7 @@ class FilterHandler:
                                             internal_ext = os.path.splitext(info.filename)[1].lower()
                                             if internal_ext in BLOCKED_EXTENSIONS:
                                                 logger.info(f"Blocked file inside ZIP: {info.filename}")
-                                                return {}  # ZIP 전체를 차단
+                                                raise Exception("Blocked file inside compressed archive")
                             elif ext in [".tar", ".gz"]:
                                 with tarfile.open(fileobj=io.BytesIO(payload)) as t:
                                     for member in t.getmembers():
@@ -384,7 +388,7 @@ class FilterHandler:
                                                 internal_ext = os.path.splitext(member.name)[1].lower()
                                                 if internal_ext in BLOCKED_EXTENSIONS:
                                                     logger.info(f"Blocked file inside TAR: {member.name}")
-                                                    return {}
+                                                    raise Exception("Blocked file inside compressed archive")
                         except Exception as e:
                             logger.error(f"압축 파일 {filename} 추출 실패: {e}")
         return extracted_files
