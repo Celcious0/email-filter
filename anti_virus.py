@@ -267,7 +267,7 @@ class FilterHandler:
             filename = part.get_filename() or part.get_param("name")
             if filename:
                 filename = self.decode_mime_words(filename)
-                expected_mime = self.identify_file_type(filename, part.get_payload(decode=True))[1]
+                ext, expected_mime = self.identify_file_type(filename, part.get_payload(decode=True))
                 actual_mime = part.get_content_type()
                 logger.debug(
                     f"Part {idx} - 파일명: {filename}, 확장자: {ext}, 예상 MIME: {expected_mime}, 실제 MIME: {actual_mime}")
