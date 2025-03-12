@@ -117,7 +117,7 @@ class FilterHandler:
         from email.generator import BytesGenerator
         from io import BytesIO
         buf = BytesIO()
-        BytesGenerator(buf, mangle_from=False).flatten(mail_data)
+        BytesGenerator(buf).flatten(mail_data)
         envelope.content = buf.getvalue()
 
         # Subject 디코딩
