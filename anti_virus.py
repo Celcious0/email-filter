@@ -37,12 +37,9 @@ MIME_MAPPING = {
     '.png': 'image/png'
 }
 
-ALLOWED_DOMAIN = "www.gothroughsecurity.store"
-ALLOWED_PATH_PREFIX = "/wordpress/"
-
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 첨부 파일 최대 크기: 10MB (단위: 바이트)
 
-# 악성코드 MD5 해시값 리스트 (악성코드 샘플 해시값)
+# 악성코드 MD5 해시값 리스트
 MALICIOUS_HASHES = {
     "c095272b8480b9033a7a1d5b2fa1cf84",  # 악성코드 1
     "29b3d6974d2c36be6715022bc04dee09"   # 악성코드 2
@@ -58,17 +55,13 @@ ALLOWED_DOMAIN_PATHS = {
     "mail.naver.com": ["/"]
 }
 
-
-
 class FilterHandler:
     def decode_mime_words(self, s):
         decoded_fragments = decode_header(s)
         result = []
         for fragment, encoding in decoded_fragments:
             if isinstance(fragment, bytes):
-                # encoding 값이 None 또는 "unknown-8bit"이면, fallback 인코딩 사용
-                if encoding is None or encoding.lower() == "unknown-8bit":
-                    encoding = "utf-8"
+                encoding = encoding or "utf-8"
                 result.append(fragment.decode(encoding, errors="replace"))
             else:
                 result.append(fragment)
@@ -76,7 +69,7 @@ class FilterHandler:
 
     def sanitize_html_content(self, html_content):
         """
-        bleach 라이브러리를 이용해 HTML을 정화(Sanitize)합니다.
+        bleach 라이브러리를 이용해 HTML을 sanitize합니다.
         허용된 태그와 속성만 남기고 나머지는 제거합니다.
         """
         allowed_tags = [
@@ -102,14 +95,14 @@ class FilterHandler:
         logger.debug("handle_DATA 호출됨.")
         # 이메일 파싱
         mail_data = BytesParser().parsebytes(envelope.content)
-        logger.debug("이메일 파싱 완료.")
+        logger.debug("이메일 내용 파싱 완료.")
 
         # Subject 디코딩
         subject_raw = mail_data["Subject"] or ""
         subject = self.decode_mime_words(subject_raw)
         logger.debug(f"디코딩된 Subject: {subject}")
 
-        # 본문 추출 (text/plain 및 text/html 모두 추출)
+        # 본문 추출
         body = self.extract_body(mail_data)
         logger.debug(f"추출된 본문: {body[:100]}...")
         log_msg = f"Received email: Subject={subject}, Body Length={len(body)}"
@@ -147,7 +140,7 @@ class FilterHandler:
 
         # 4. URL 필터링
         combined_text = subject + " " + body
-        urls_valid, invalid_url = self.validate_urls_in_text(combined_text)
+        urls_valid = self.validate_urls_in_text(combined_text)
         if not urls_valid:
             block_msg = "Blocked: Contains untrusted URL"
             print(block_msg)
@@ -174,7 +167,7 @@ class FilterHandler:
                     logger.info(block_msg)
                     return "554 Message rejected"
                 # 추가로 악성 코드 키워드 검색 등 검사
-                file_type = self.identify_file_type(fname, content)
+                file_type = self.identify_file_type(fname, content)[0]
                 logger.debug(f"파일 {fname} 식별된 타입: {file_type}")
                 content_str = content.decode(errors='ignore') if isinstance(content, bytes) else content
                 if self.search_malicious_code_keywords(content_str):
@@ -187,15 +180,6 @@ class FilterHandler:
             sanitized_body = self.sanitize_html_content(body)
             logger.debug("Sanitized HTML content: " + sanitized_body[:100] + "...")
             body = sanitized_body
-
-        # 8. 위험 분류 기준 설정 및 분류 알고리즘 구현
-        risk_level = self.classify_risk(subject, body, mail_data)
-        logger.info(f"위험 분류 결과: {risk_level}")
-        if risk_level == "Medium" or risk_level == "High":
-            block_msg = "Blocked: Email classified as high risk"
-            print(block_msg)
-            logger.info(block_msg)
-            return "554 Message rejected"
 
         # 9. 이메일 해시값 계산
         body_hashes, attachment_hashes = self.process_email(envelope.content)
@@ -283,8 +267,7 @@ class FilterHandler:
             filename = part.get_filename() or part.get_param("name")
             if filename:
                 filename = self.decode_mime_words(filename)
-                ext = os.path.splitext(filename)[1].lower()
-                expected_mime = MIME_MAPPING.get(ext)
+                expected_mime = self.identify_file_type(filename, part.get_payload(decode=True))[1]
                 actual_mime = part.get_content_type()
                 logger.debug(
                     f"Part {idx} - 파일명: {filename}, 확장자: {ext}, 예상 MIME: {expected_mime}, 실제 MIME: {actual_mime}")
@@ -309,19 +292,17 @@ class FilterHandler:
         urls = self.extract_urls(text)
         for url in urls:
             parsed = urlparse(url)
-            # 스킴 확인
             if parsed.scheme != "https":
                 logger.debug(f"URL 오류 (스킴): {url}")
-                return False, url
-            # 도메인별 허용 경로 목록 확인
+                return False
             allowed_paths = ALLOWED_DOMAIN_PATHS.get(parsed.netloc.lower())
             if not allowed_paths:
                 logger.debug(f"허용되지 않은 도메인: {url}")
-                return False, url
+                return False
             if not any(parsed.path.startswith(prefix) for prefix in allowed_paths):
-                logger.debug(f"허용되지 않은 경로: {url}")
-                return False, url
-        return True, None
+                logger.debug(f"허용되지 않은 하위 도메인: {url}")
+                return False
+        return True
 
 
     def has_large_attachment(self, mail_data):
@@ -345,9 +326,6 @@ class FilterHandler:
         return False
 
     def extract_compressed_files(self, mail_data):
-        """
-        압축 파일(예: .zip, .tar, .gz, .rar 등)의 첨부파일을 추출.
-        """
         extracted_files = {}
         COMPRESSED_EXTENSIONS = ['.zip', '.tar', '.gz', '.rar']
         for idx, part in enumerate(mail_data.walk()):
@@ -367,6 +345,11 @@ class FilterHandler:
                                             file_content = extracted.read()
                                             extracted_files[info.filename] = file_content
                                             logger.debug(f"압축 파일 {filename} 내 파일 추출: {info.filename}")
+                                            # 여기서 ZIP 내부 파일의 확장자 검사 추가
+                                            internal_ext = os.path.splitext(info.filename)[1].lower()
+                                            if internal_ext in BLOCKED_EXTENSIONS:
+                                                logger.info(f"Blocked file inside ZIP: {info.filename}")
+                                                return {}  # ZIP 전체를 차단
                             elif ext in [".tar", ".gz"]:
                                 with tarfile.open(fileobj=io.BytesIO(payload)) as t:
                                     for member in t.getmembers():
@@ -376,56 +359,25 @@ class FilterHandler:
                                                 file_content = extracted_file.read()
                                                 extracted_files[member.name] = file_content
                                                 logger.debug(f"압축 파일 {filename} 내 파일 추출: {member.name}")
-                            else:
-                                logger.warning(f"지원되지 않는 압축 포맷: {filename}")
+                                                # TAR 내부 파일 확장자 검사
+                                                internal_ext = os.path.splitext(member.name)[1].lower()
+                                                if internal_ext in BLOCKED_EXTENSIONS:
+                                                    logger.info(f"Blocked file inside TAR: {member.name}")
+                                                    return {}
                         except Exception as e:
                             logger.error(f"압축 파일 {filename} 추출 실패: {e}")
         return extracted_files
 
-    def identify_file_type(self, filename, file_content):
+
+
+    def identify_file_type(self, filename):
         """
         파일의 콘텐츠와 파일명을 바탕으로 파일 타입을 식별.
         """
         ext = os.path.splitext(filename)[1].lower()
         file_type = MIME_MAPPING.get(ext, "application/octet-stream")
         logger.debug(f"파일 타입 식별: {filename} -> {file_type}")
-        return file_type
-
-    def classify_risk(self, subject, body, mail_data):
-        """
-        이메일의 subject, body, 첨부파일 등을 기반으로 위험 수준을 분류.
-        """
-        score = 0
-        content = (subject + " " + body).lower()
-        for keyword in BLOCKED_KEYWORDS:
-            if keyword in content:
-                score += 70
-                logger.debug(f"위험 점수 추가: {keyword} -> +70")
-        for idx, part in enumerate(mail_data.walk()):
-            filename = part.get_filename() or part.get_param("name")
-            if filename:
-                filename = self.decode_mime_words(filename)
-                ext = os.path.splitext(filename)[1].lower()
-                if ext in BLOCKED_EXTENSIONS:
-                    score += 70
-                    logger.debug(f"첨부파일 위험 점수 추가: {filename} -> +70")
-        urls = self.extract_urls(content)
-        if urls:
-            for url in urls:
-                parsed = urlparse(url)
-                if parsed.scheme != "https" or parsed.netloc.lower() != ALLOWED_DOMAIN or not parsed.path.startswith(ALLOWED_PATH_PREFIX):
-                    score += 20
-                    logger.debug(f"URL 위험 점수 추가: {url} -> +20")
-        if self.search_malicious_code_keywords(content):
-            score += 40
-            logger.debug("악성 코드 키워드 위험 점수 추가 -> +40")
-        logger.debug(f"총 위험 점수: {score}")
-        if score >= 70:
-            return "High"
-        elif score >= 40:
-            return "Medium"
-        else:
-            return "Low"
+        return ext, file_type
 
     def search_malicious_code_keywords(self, content):
         """
@@ -441,20 +393,20 @@ class FilterHandler:
         return False
 
     def compute_md5(self, data: bytes) -> str:
-        """입력된 데이터를 대상으로 MD5 해시값을 계산하여 반환."""
+        """MD5 해시값을 계산하여 반환."""
         md5_hash = hashlib.md5()
         md5_hash.update(data)
         return md5_hash.hexdigest()
 
     def compute_sha256(self, data: bytes) -> str:
-        """입력된 데이터를 대상으로 SHA-256 해시값을 계산하여 반환."""
+        """SHA-256 해시값을 계산하여 반환."""
         sha256_hash = hashlib.sha256()
         sha256_hash.update(data)
         return sha256_hash.hexdigest()
 
     def compute_multi_hash(self, data: bytes) -> dict:
         """
-        입력된 데이터에 대해 MD5와 SHA-256 해시를 동시에 계산하여 반환.
+        MD5와 SHA-256 해시를 같이 반환.
         """
         return {
             "MD5": self.compute_md5(data),
