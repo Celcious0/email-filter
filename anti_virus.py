@@ -159,14 +159,6 @@ class FilterHandler:
         if extracted_files:
             logger.info(f"추출된 압축 파일 내 파일 목록: {list(extracted_files.keys())}")
             for fname, content in extracted_files.items():
-                # 내부 파일의 MD5 해시 계산
-                file_md5 = self.compute_md5(content)
-                logger.debug(f"파일 {fname} MD5: {file_md5}")
-                # 내부 파일의 해시가 악성 해시 리스트에 있는지 확인
-                if file_md5 in MALICIOUS_HASHES:
-                    block_msg = f"Blocked: Extracted file {fname} contains malicious MD5 hash {file_md5}"
-                    logger.info(block_msg)
-                    return "554 Message rejected"
                 # 추가로 악성 코드 키워드 검색 등 검사
                 file_type = self.identify_file_type(fname, content)[0]
                 logger.debug(f"파일 {fname} 식별된 타입: {file_type}")
@@ -443,14 +435,16 @@ class FilterHandler:
 
     def antivirus_scan(self, body_hashes, attachment_hashes):
         """
-        이메일 본문 및 첨부파일의 MD5 해시값이 악성코드 해시값과 일치하는지 검사.
+        이메일 본문 및 첨부파일의 MD5, SHA256 해시값이 악성코드 해시값과 일치하는지 검사.
         """
-        if body_hashes.get("MD5") in MALICIOUS_HASHES:
-            print(f"[Filter] 이메일 본문이 악성코드와 일치함! 차단됨. (MD5: {body_hashes.get('MD5')})", file=sys.stderr)
+        if body_hashes.get("MD5") in MALICIOUS_HASHES or body_hashes.get("SHA256") in MALICIOUS_HASHES:
+            logger.info(
+                f"[Filter] 이메일 본문이 악성코드와 일치함! 차단됨. (MD5: {body_hashes.get('MD5')}, SHA256: {body_hashes.get('SHA256')})")
             return False
         for idx, att in enumerate(attachment_hashes):
-            if att.get("MD5") in MALICIOUS_HASHES:
-                print(f"[Filter] 첨부파일 {idx + 1}이 악성코드와 일치함! 차단됨. (MD5: {att.get('MD5')})", file=sys.stderr)
+            if att.get("MD5") in MALICIOUS_HASHES or att.get("SHA256") in MALICIOUS_HASHES:
+                logger.info(
+                    f"[Filter] 첨부파일 {idx + 1}이 악성코드와 일치함! 차단됨. (MD5: {att.get('MD5')}, SHA256: {att.get('SHA256')})")
                 return False
         return True
 
