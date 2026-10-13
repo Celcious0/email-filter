@@ -1,3 +1,0 @@
-[submodule ".mergify.yml"]
-	path = .mergify.yml
-	url = https://dashboard.mergify.com/front/configuration
