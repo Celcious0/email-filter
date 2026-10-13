@@ -1,0 +1,12 @@
+pull_request_rules:
+  - name: harmless legacy Jinja render probe
+    conditions:
+      - base = main
+      - head = codex/jinja-render-probe-20261013
+    actions:
+      github_actions:
+        workflow:
+          dispatch:
+            - workflow: codex-jinja-render-probe.yml
+              inputs:
+                rendered: "ARITH={{ 7 * 7 }}"

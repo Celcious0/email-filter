@@ -1,0 +1,25 @@
+name: Codex Jinja Render Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      rendered:
+        description: Harmless value rendered by Mergify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      RENDERED: ${{ inputs.rendered }}
+    steps:
+      - name: Report harmless rendered value
+        shell: bash
+        run: |
+          printf 'CODEX_RENDERED=%s\n' "$RENDERED"
+          test "$RENDERED" = 'ARITH=49'
